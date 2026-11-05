@@ -10,7 +10,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💸</text></svg>">
 <style>
 :root{--red:#ff2d2d;--ink:#111;--yel:#ffe600;--paper:#fff8dc;--grn:#00c853;
-  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 *,*::before,*::after{box-sizing:inherit}
 html{background:var(--red)}
 body{margin:0;background:var(--red);color:var(--ink);font:600 16px/1.3 -apple-system,"Helvetica Neue",Arial,sans-serif;-webkit-tap-highlight-color:transparent}
@@ -24,7 +24,7 @@ h1{font-size:64px;line-height:.9;margin:6px 0 2px;color:var(--yel);text-shadow:4
 .quip{margin:0 0 12px}
 h2{font-size:26px;margin:0 0 10px}
 label{display:block;font-weight:800;margin:10px 0 4px}
-input[type=text],input[type=number],input[type=date]{width:100%;font:inherit;font-size:18px;padding:10px;border:3px solid var(--ink);background:#fff;border-radius:0}
+input[type=text],input[type=number],input[type=date],input[type=email],input[type=password]{width:100%;font:inherit;font-size:18px;padding:10px;border:3px solid var(--ink);background:#fff;border-radius:0}
 .seg{display:flex;gap:8px}
 .seg label{flex:1;margin:0}
 .seg input{position:absolute;opacity:0;pointer-events:none}
@@ -49,196 +49,250 @@ button[disabled]{opacity:.4}
 .foot button{flex:1}
 .note{font-size:14px;margin:10px 0 0;font-weight:700}
 .err{color:var(--red);font-weight:800;min-height:1.3em;margin:8px 0 0}
+.sub .err{color:var(--yel)}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>PayUp</h1>
-  <p class="sub">Money talks. Yours is overdue.</p>
+<h1>PayUp</h1>
+<p class="sub">Money talks. Yours is overdue.</p>
 
-  <section class="card bal" aria-live="polite">
-    <p class="big" id="balLine"></p>
-    <p class="quip" id="balQuip"></p>
-    <button class="piper" id="settle">Pay the Piper</button>
-  </section>
+<section class="card" id="authCard" hidden>
+<h2>Show Your ID</h2>
+<label for="email">Email</label>
+<input type="email" id="email" autocomplete="username">
+<label for="pw">Password</label>
+<input type="password" id="pw" autocomplete="current-password">
+<p class="err" id="authErr"></p>
+<button class="full" id="signin">Let Me In</button>
+</section>
 
-  <section class="card">
-    <h2 id="formTitle">Log the Damage</h2>
-    <label for="desc">What did you blow money on?</label>
-    <input type="text" id="desc" placeholder="Tacos. Again." autocomplete="off">
-    <label for="amount">How much? (be honest)</label>
-    <input type="number" id="amount" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
-    <label>Who got stuck with the bill?</label>
-    <div class="seg" id="paidBy">
-      <label><input type="radio" name="paid" value="A" checked><span>Austin</span></label>
-      <label><input type="radio" name="paid" value="K"><span>Keeley</span></label>
-    </div>
-    <label>How we're splitting this mess</label>
-    <div class="seg" id="split">
-      <label><input type="radio" name="split" value="50" checked><span>50/50<br>Fair. Boring.</span></label>
-      <label><input type="radio" name="split" value="65"><span>65/35<br>Austin carries</span></label>
-    </div>
-    <label for="date">Date of the crime</label>
-    <input type="date" id="date">
-    <p class="err" id="err"></p>
-    <button class="full" id="save">Log It, No Takebacks</button>
-    <button class="full ghost" id="cancel" hidden>Never Mind, Coward</button>
-  </section>
+<div id="app" hidden>
+<p class="err" id="syncErr" style="background:#fff;padding:0 6px"></p>
+<section class="card bal" aria-live="polite">
+<p class="big" id="balLine"></p>
+<p class="quip" id="balQuip"></p>
+<button class="piper" id="settle">Pay the Piper</button>
+</section>
 
-  <section class="card">
-    <h2>The Receipts</h2>
-    <div id="list"></div>
-  </section>
+<section class="card">
+<h2 id="formTitle">Log the Damage</h2>
+<label for="desc">What did you blow money on?</label>
+<input type="text" id="desc" placeholder="Tacos. Again." autocomplete="off">
+<label for="amount">How much? (be honest)</label>
+<input type="number" id="amount" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+<label>Who got stuck with the bill?</label>
+<div class="seg" id="paidBy">
+<label><input type="radio" name="paid" value="A" checked><span>Austin</span></label>
+<label><input type="radio" name="paid" value="K"><span>Keeley</span></label>
+</div>
+<label>How we're splitting this mess</label>
+<div class="seg" id="split">
+<label><input type="radio" name="split" value="50" checked><span>50/50<br>Fair. Boring.</span></label>
+<label><input type="radio" name="split" value="65"><span>65/35<br>Austin carries</span></label>
+</div>
+<label for="date">Date of the crime</label>
+<input type="date" id="date">
+<p class="err" id="err"></p>
+<button class="full" id="save">Log It, No Takebacks</button>
+<button class="full ghost" id="cancel" hidden>Never Mind, Coward</button>
+</section>
 
-  <section class="card">
-    <h2>Don't Lose Your Stuff</h2>
-    <div class="foot">
-      <button id="export">Hoard a Backup</button>
-      <button id="importBtn">Resurrect Data</button>
-    </div>
-    <input type="file" id="importFile" accept="application/json,.json" hidden>
-    <p class="note" id="backupNote"></p>
-  </section>
+<section class="card">
+<h2>The Receipts</h2>
+<div id="list"></div>
+</section>
+
+<section class="card">
+<h2>Don't Lose Your Stuff</h2>
+<div class="foot">
+<button id="export">Hoard a Backup</button>
+<button id="importBtn">Resurrect Data</button>
+<button id="uploadLocal" hidden>Upload Old Phone Data</button>
+<button id="signout" class="ghost">Sign Out</button>
+</div>
+<input type="file" id="importFile" accept="application/json,.json" hidden>
+<p class="note" id="backupNote"></p>
+</section>
+</div>
 </div>
 
-<script>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,setDoc,deleteDoc,onSnapshot,writeBatch} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+var firebaseConfig={
+  apiKey: "AIzaSyB8rVL8sOJu8Ka_aGrqwSEXvcIlHffFUiM",
+  authDomain: "payup-5cc7a.firebaseapp.com",
+  projectId: "payup-5cc7a",
+  storageBucket: "payup-5cc7a.firebasestorage.app",
+  messagingSenderId: "692508371545",
+  appId: "1:692508371545:web:453b8a61a65aa56c10df48"
+};
+
 (function(){
-  var KEY='payup.v1', NAMES={A:'Austin',K:'Keeley'};
-  var state={items:[],lastBackup:null,last:{paid:'A',split:'50'}};
-  var editId=null;
-  var $=function(id){return document.getElementById(id)};
+var PREF_KEY='payup.prefs',OLD_KEY='payup.v1',NAMES={A:'Austin',K:'Keeley'};
+var items=[],prefs={lastBackup:null,last:{paid:'A',split:'50'}},editId=null,unsub=null,db=null,auth=null;
+var $=function(id){return document.getElementById(id)};
 
-  // Storage layer: swap these two functions for Firebase later.
-  function load(){
-    try{var r=localStorage.getItem(KEY);if(r){var s=JSON.parse(r);if(s&&Array.isArray(s.items))state=Object.assign(state,s)}}catch(e){}
-  }
-  function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+function loadPrefs(){try{var r=localStorage.getItem(PREF_KEY)||localStorage.getItem(OLD_KEY);if(r){var s=JSON.parse(r);if(s.last)prefs.last=s.last;if(s.lastBackup)prefs.lastBackup=s.lastBackup}}catch(e){}}
+function savePrefs(){try{localStorage.setItem(PREF_KEY,JSON.stringify(prefs))}catch(e){}}
+function localItems(){try{var s=JSON.parse(localStorage.getItem(OLD_KEY)||'null');return s&&Array.isArray(s.items)?s.items:[]}catch(e){return[]}}
 
-  function money(c){return '$'+(Math.abs(c)/100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',')}
-  function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-  function austinShare(it){return Math.round(it.cents*(it.split==='65'?0.65:0.5))}
+// Cloud storage: one Firestore doc per item in "entries".
+function put(it){return setDoc(doc(db,'entries',String(it.id)),it).catch(fail)}
+function remove(id){return deleteDoc(doc(db,'entries',String(id))).catch(fail)}
+function fail(e){$('syncErr').textContent=e&&e.code==='permission-denied'?'This account isn’t allowed to touch the data.':'Sync problem: '+(e&&e.code||e)}
+function writeAll(list){
+var chunks=[];for(var i=0;i<list.length;i+=400)chunks.push(list.slice(i,i+400));
+return chunks.reduce(function(p,c){return p.then(function(){var b=writeBatch(db);c.forEach(function(it){b.set(doc(db,'entries',String(it.id)),it)});return b.commit()})},Promise.resolve());
+}
 
-  // Positive = Keeley owes Austin.
-  function balance(){
-    var n=0;
-    state.items.forEach(function(it){
-      if(it.type==='settle'){n+= it.from==='K'? -it.cents : it.cents}
-      else{
-        var a=austinShare(it),k=it.cents-a;
-        n+= it.paid==='A'? k : -a;
-      }
-    });
-    return n;
-  }
+function money(c){return '$'+(Math.abs(c)/100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function austinShare(it){return Math.round(it.cents*(it.split==='65'?0.65:0.5))}
+// Positive = Keeley owes Austin.
+function balance(){
+var n=0;
+items.forEach(function(it){
+if(it.type==='settle'){n+= it.from==='K'? -it.cents : it.cents}
+else{var a=austinShare(it),k=it.cents-a;n+= it.paid==='A'? k : -a}
+});
+return n;
+}
+function renderBalance(){
+var b=balance(),line=$('balLine'),quip=$('balQuip'),btn=$('settle');
+if(b===0){line.textContent='All square.';quip.textContent='Nobody owes nobody. Suspicious. Go spend some money.';btn.disabled=true;return}
+var debtor=b>0?'Keeley':'Austin',cred=b>0?'Austin':'Keeley';
+line.textContent=debtor+' owes '+cred+' '+money(b)+'.';
+quip.textContent=b>0?'Cough it up, Keeley.':'Pay up, Austin. Don’t make it weird.';
+btn.disabled=false;
+}
+function renderList(){
+var box=$('list');box.innerHTML='';
+if(!items.length){var e=document.createElement('p');e.className='empty';e.textContent='Zero expenses. Too clean. Log something.';box.appendChild(e);return}
+var sorted=items.slice().sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:b.id-a.id});
+sorted.forEach(function(it){
+var row=document.createElement('div');row.className='row'+(it.type==='settle'?' settle':'');
+var left=document.createElement('div');
+var t=document.createElement('div');t.textContent=it.type==='settle'?'PIPER PAID':it.desc;
+var m=document.createElement('div');m.className='meta';
+m.textContent=it.type==='settle'
+? NAMES[it.from]+' paid '+NAMES[it.to]+' · '+it.date
+: NAMES[it.paid]+' paid · '+(it.split==='65'?'65/35':'50/50')+' · '+it.date;
+left.appendChild(t);left.appendChild(m);
+var acts=document.createElement('div');acts.className='acts';
+if(it.type!=='settle'){
+var ed=document.createElement('button');ed.className='ghost';ed.textContent='Fix It';
+ed.onclick=function(){startEdit(it.id)};acts.appendChild(ed);
+}
+var del=document.createElement('button');del.className='ghost';del.textContent='Yeet';
+del.onclick=function(){if(confirm('Yeet this into the void? No takebacks.')){if(editId===it.id)resetForm();remove(it.id)}};
+acts.appendChild(del);left.appendChild(acts);
+var amt=document.createElement('div');amt.className='amt';amt.textContent=money(it.cents);
+row.appendChild(left);row.appendChild(amt);box.appendChild(row);
+});
+}
+function renderBackup(){
+var n=$('backupNote');
+$('uploadLocal').hidden=!localItems().length;
+if(!prefs.lastBackup){n.textContent='Your data now lives in the cloud. A backup file is still smart.';return}
+var days=Math.floor((Date.now()-prefs.lastBackup)/864e5);
+n.textContent=days<1?'Backed up today. Look at you.':'Last backup: '+days+' day'+(days===1?'':'s')+' ago.'+(days>30?' Do it again. Now.':'');
+}
+function render(){renderBalance();renderList();renderBackup()}
+function radio(name,val){var r=document.querySelector('input[name="'+name+'"][value="'+val+'"]');if(r)r.checked=true}
+function getRadio(name){return document.querySelector('input[name="'+name+'"]:checked').value}
+function resetForm(){
+editId=null;$('desc').value='';$('amount').value='';$('date').value=today();$('err').textContent='';
+radio('paid',prefs.last.paid);radio('split',prefs.last.split);
+$('formTitle').textContent='Log the Damage';$('save').textContent='Log It, No Takebacks';$('cancel').hidden=true;
+}
+function startEdit(id){
+var it=items.filter(function(x){return x.id===id})[0];if(!it)return;
+editId=id;$('desc').value=it.desc;$('amount').value=(it.cents/100).toFixed(2);$('date').value=it.date;
+radio('paid',it.paid);radio('split',it.split);
+$('formTitle').textContent='Fix Your Mess';$('save').textContent='Save the Fix';$('cancel').hidden=false;
+window.scrollTo({top:$('desc').getBoundingClientRect().top+window.scrollY-120,behavior:'smooth'});
+}
 
-  function renderBalance(){
-    var b=balance(),line=$('balLine'),quip=$('balQuip'),btn=$('settle');
-    if(b===0){line.textContent='All square.';quip.textContent='Nobody owes nobody. Suspicious. Go spend some money.';btn.disabled=true;return}
-    var debtor=b>0?'Keeley':'Austin',cred=b>0?'Austin':'Keeley';
-    line.textContent=debtor+' owes '+cred+' '+money(b)+'.';
-    quip.textContent=b>0?'Cough it up, Keeley.':'Pay up, Austin. Don’t make it weird.';
-    btn.disabled=false;
-  }
+$('save').onclick=function(){
+var desc=$('desc').value.trim(),amt=parseFloat($('amount').value),date=$('date').value;
+if(!desc){$('err').textContent='Spent it on WHAT? Add a description.';return}
+if(!(amt>0)){$('err').textContent='Enter an actual amount, genius.';return}
+if(!date)date=today();
+var cents=Math.round(amt*100),paid=getRadio('paid'),split=getRadio('split');
+if(editId){
+var old=items.filter(function(x){return x.id===editId})[0];
+put(Object.assign({},old,{desc:desc,cents:cents,paid:paid,split:split,date:date}));
+}else{
+put({id:Date.now(),type:'expense',desc:desc,cents:cents,paid:paid,split:split,date:date});
+}
+prefs.last={paid:paid,split:split};savePrefs();resetForm();
+};
+$('cancel').onclick=resetForm;
+$('settle').onclick=function(){
+var b=balance();if(b===0)return;
+var from=b>0?'K':'A',to=b>0?'A':'K';
+if(!confirm(NAMES[from]+' pays '+NAMES[to]+' '+money(b)+' and the slate goes clean. No takebacks. Proceed?'))return;
+put({id:Date.now(),type:'settle',cents:Math.abs(b),from:from,to:to,date:today()});
+};
+$('export').onclick=function(){
+var blob=new Blob([JSON.stringify({items:items,lastBackup:Date.now(),last:prefs.last},null,2)],{type:'application/json'});
+var url=URL.createObjectURL(blob),a=document.createElement('a');
+a.href=url;a.download='payup-backup-'+today()+'.json';document.body.appendChild(a);a.click();a.remove();
+setTimeout(function(){URL.revokeObjectURL(url)},2000);
+prefs.lastBackup=Date.now();savePrefs();renderBackup();
+};
+$('importBtn').onclick=function(){$('importFile').click()};
+$('importFile').onchange=function(e){
+var f=e.target.files[0];if(!f)return;
+var r=new FileReader();
+r.onload=function(){
+try{
+var s=JSON.parse(r.result);
+if(!s||!Array.isArray(s.items))throw 0;
+var good=s.items.filter(function(x){return x&&x.id&&typeof x.cents==='number'});
+if(!confirm('This ADDS '+good.length+' backup items to the shared list (matching ones get overwritten). Send it?'))return;
+writeAll(good).catch(fail);
+}catch(x){alert('That file is garbage. Try a real PayUp backup.')}
+};
+r.readAsText(f);e.target.value='';
+};
+$('uploadLocal').onclick=function(){
+var li=localItems();if(!li.length)return;
+if(!confirm('Upload '+li.length+' item(s) saved on this device to the shared cloud list?'))return;
+writeAll(li).then(function(){alert('Uploaded. Check the Receipts.')}).catch(fail);
+};
 
-  function renderList(){
-    var box=$('list');box.innerHTML='';
-    if(!state.items.length){var e=document.createElement('p');e.className='empty';e.textContent='Zero expenses. Too clean. Log something.';box.appendChild(e);return}
-    var items=state.items.slice().sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:b.id-a.id});
-    items.forEach(function(it){
-      var row=document.createElement('div');row.className='row'+(it.type==='settle'?' settle':'');
-      var left=document.createElement('div');
-      var t=document.createElement('div');t.textContent=it.type==='settle'?'PIPER PAID':it.desc;
-      var m=document.createElement('div');m.className='meta';
-      m.textContent=it.type==='settle'
-        ? NAMES[it.from]+' paid '+NAMES[it.to]+' · '+it.date
-        : NAMES[it.paid]+' paid · '+(it.split==='65'?'65/35':'50/50')+' · '+it.date;
-      left.appendChild(t);left.appendChild(m);
-      var acts=document.createElement('div');acts.className='acts';
-      if(it.type!=='settle'){
-        var ed=document.createElement('button');ed.className='ghost';ed.textContent='Fix It';
-        ed.onclick=function(){startEdit(it.id)};acts.appendChild(ed);
-      }
-      var del=document.createElement('button');del.className='ghost';del.textContent='Yeet';
-      del.onclick=function(){if(confirm('Yeet this into the void? No takebacks.')){state.items=state.items.filter(function(x){return x.id!==it.id});if(editId===it.id)resetForm();save();render()}};
-      acts.appendChild(del);left.appendChild(acts);
-      var amt=document.createElement('div');amt.className='amt';amt.textContent=money(it.cents);
-      row.appendChild(left);row.appendChild(amt);box.appendChild(row);
-    });
-  }
-
-  function renderBackup(){
-    var n=$('backupNote');
-    if(!state.lastBackup){n.textContent='You have never backed up. Bold. Reckless. Fix it.';return}
-    var days=Math.floor((Date.now()-state.lastBackup)/864e5);
-    n.textContent=days<1?'Backed up today. Look at you.':'Last backup: '+days+' day'+(days===1?'':'s')+' ago.'+(days>30?' Do it again. Now.':'');
-  }
-
-  function render(){renderBalance();renderList();renderBackup()}
-
-  function radio(name,val){var r=document.querySelector('input[name="'+name+'"][value="'+val+'"]');if(r)r.checked=true}
-  function getRadio(name){return document.querySelector('input[name="'+name+'"]:checked').value}
-
-  function resetForm(){
-    editId=null;$('desc').value='';$('amount').value='';$('date').value=today();$('err').textContent='';
-    radio('paid',state.last.paid);radio('split',state.last.split);
-    $('formTitle').textContent='Log the Damage';$('save').textContent='Log It, No Takebacks';$('cancel').hidden=true;
-  }
-
-  function startEdit(id){
-    var it=state.items.filter(function(x){return x.id===id})[0];if(!it)return;
-    editId=id;$('desc').value=it.desc;$('amount').value=(it.cents/100).toFixed(2);$('date').value=it.date;
-    radio('paid',it.paid);radio('split',it.split);
-    $('formTitle').textContent='Fix Your Mess';$('save').textContent='Save the Fix';$('cancel').hidden=false;
-    window.scrollTo({top:$('desc').getBoundingClientRect().top+window.scrollY-120,behavior:'smooth'});
-  }
-
-  $('save').onclick=function(){
-    var desc=$('desc').value.trim(),amt=parseFloat($('amount').value),date=$('date').value;
-    if(!desc){$('err').textContent='Spent it on WHAT? Add a description.';return}
-    if(!(amt>0)){$('err').textContent='Enter an actual amount, genius.';return}
-    if(!date)date=today();
-    var cents=Math.round(amt*100),paid=getRadio('paid'),split=getRadio('split');
-    if(editId){
-      state.items=state.items.map(function(x){return x.id===editId?Object.assign({},x,{desc:desc,cents:cents,paid:paid,split:split,date:date}):x});
-    }else{
-      state.items.push({id:Date.now(),type:'expense',desc:desc,cents:cents,paid:paid,split:split,date:date});
-    }
-    state.last={paid:paid,split:split};save();resetForm();render();
-  };
-  $('cancel').onclick=resetForm;
-
-  $('settle').onclick=function(){
-    var b=balance();if(b===0)return;
-    var from=b>0?'K':'A',to=b>0?'A':'K';
-    if(!confirm(NAMES[from]+' pays '+NAMES[to]+' '+money(b)+' and the slate goes clean. No takebacks. Proceed?'))return;
-    state.items.push({id:Date.now(),type:'settle',cents:Math.abs(b),from:from,to:to,date:today()});
-    save();render();
-  };
-
-  $('export').onclick=function(){
-    var blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
-    var url=URL.createObjectURL(blob),a=document.createElement('a');
-    a.href=url;a.download='payup-backup-'+today()+'.json';document.body.appendChild(a);a.click();a.remove();
-    setTimeout(function(){URL.revokeObjectURL(url)},2000);
-    state.lastBackup=Date.now();save();renderBackup();
-  };
-  $('importBtn').onclick=function(){$('importFile').click()};
-  $('importFile').onchange=function(e){
-    var f=e.target.files[0];if(!f)return;
-    var r=new FileReader();
-    r.onload=function(){
-      try{
-        var s=JSON.parse(r.result);
-        if(!s||!Array.isArray(s.items))throw 0;
-        if(!confirm('This REPLACES everything currently in the app. Send it?'))return;
-        state=Object.assign({items:[],lastBackup:null,last:{paid:'A',split:'50'}},s);
-        save();resetForm();render();
-      }catch(x){alert('That file is garbage. Try a real PayUp backup.')}
-    };
-    r.readAsText(f);e.target.value='';
-  };
-
-  load();resetForm();render();
+// Auth
+var cfgOk=firebaseConfig.apiKey&&firebaseConfig.apiKey.indexOf('PASTE')!==0;
+loadPrefs();
+if(!cfgOk){$('authCard').hidden=false;$('authErr').textContent='Firebase config missing: paste your firebaseConfig into index.html.';$('signin').disabled=true;return}
+var fbApp=initializeApp(firebaseConfig);
+auth=getAuth(fbApp);
+db=initializeFirestore(fbApp,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
+function doSignIn(){
+$('authErr').textContent='';
+signInWithEmailAndPassword(auth,$('email').value.trim().toLowerCase(),$('pw').value).then(function(){$('pw').value=''}).catch(function(e){
+$('authErr').textContent=/invalid-credential|wrong-password|user-not-found|invalid-email/.test(e.code)?'Wrong email or password.':'Sign-in failed: '+e.code;
+});
+}
+$('signin').onclick=doSignIn;
+$('pw').onkeydown=function(e){if(e.key==='Enter')doSignIn()};
+$('signout').onclick=function(){signOut(auth)};
+onAuthStateChanged(auth,function(user){
+if(unsub){unsub();unsub=null}
+items=[];
+if(!user){$('app').hidden=true;$('authCard').hidden=false;return}
+$('authCard').hidden=true;$('app').hidden=false;$('syncErr').textContent='';
+resetForm();render();
+unsub=onSnapshot(collection(db,'entries'),function(s){
+items=s.docs.map(function(d){return d.data()});$('syncErr').textContent='';render();
+},fail);
+});
 })();
 </script>
 </body>
