@@ -120,6 +120,7 @@ button[disabled]{opacity:.4}
 <div class="seg" id="split">
 <label><input type="radio" name="split" value="50" checked><span>50/50<br>Fair. Boring.</span></label>
 <label><input type="radio" name="split" value="65"><span>65/35<br>Austin carries</span></label>
+<label><input type="radio" name="split" value="100"><span>100%<br>Freeloader</span></label>
 </div>
 <label for="date">Date of the crime</label>
 <input type="date" id="date">
@@ -166,7 +167,7 @@ var firebaseConfig={
 (function(){
 var KEY='payup.v1', PREF_KEY='payup.prefs', ADMIN='wentzaus@gmail.com', NAMES={A:'Austin',K:'Keeley'};
 var state={items:[],lastBackup:null,last:{paid:'A',split:'50'}};
-var editId=null,unsub=null,db=null,auth=null,showHistory=false,isAdmin=false;
+var editId=null,unsub=null,db=null,auth=null,showHistory=false,isAdmin=false,me=null;
 var $=function(id){return document.getElementById(id)};
 // Storage layer: prefs stay on this device; expenses live in Firestore ("entries").
 function load(){
@@ -183,7 +184,8 @@ return chunks.reduce(function(p,c){return p.then(function(){var b=writeBatch(db)
 }
 function money(c){return '$'+(Math.abs(c)/100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',')}
 function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-function austinShare(it){return Math.round(it.cents*(it.split==='65'?0.65:0.5))}
+// Split '100' = the person who did NOT pay owes the full amount.
+function austinShare(it){if(it.split==='100')return it.paid==='A'?0:it.cents;return Math.round(it.cents*(it.split==='65'?0.65:0.5))}
 // Positive = Keeley owes Austin.
 function balance(){
 var n=0;
@@ -231,7 +233,7 @@ var t=document.createElement('div');t.textContent=it.type==='settle'?'PIPER PAID
 var m=document.createElement('div');m.className='meta';
 m.textContent=it.type==='settle'
 ? NAMES[it.from]+' paid '+NAMES[it.to]+' · '+it.date
-: NAMES[it.paid]+' paid · '+(it.split==='65'?'65/35':'50/50')+' · '+it.date;
+: NAMES[it.paid]+' paid · '+(it.split==='100'?'Other owes all':it.split==='65'?'65/35':'50/50')+' · '+it.date;
 left.appendChild(t);left.appendChild(m);
 var acts=document.createElement('div');acts.className='acts';
 if(it.type!=='settle'&&it.id>cut){
@@ -260,7 +262,7 @@ function radio(name,val){var r=document.querySelector('input[name="'+name+'"][va
 function getRadio(name){return document.querySelector('input[name="'+name+'"]:checked').value}
 function resetForm(){
 editId=null;$('desc').value='';$('amount').value='';$('date').value=today();$('err').textContent='';
-radio('paid',state.last.paid);radio('split',state.last.split);
+radio('paid',me||state.last.paid);radio('split',state.last.split);
 $('formTitle').textContent='Log the Damage';$('save').textContent='Log It, No Takebacks';$('cancel').hidden=true;
 }
 function startEdit(id){
@@ -284,7 +286,7 @@ if(old)put(Object.assign({},old,{desc:desc,cents:cents,paid:paid,split:split,dat
 }else{
 put({id:Date.now(),type:'expense',desc:desc,cents:cents,paid:paid,split:split,date:date});
 }
-state.last={paid:paid,split:split};save();resetForm();
+state.last={paid:paid,split:split==='100'?state.last.split:split};save();resetForm();
 };
 $('cancel').onclick=resetForm;
 // ---- Pay the Piper: tactical nuke sequence ----
@@ -403,6 +405,7 @@ $('signout').onclick=function(){signOut(auth)};
 onAuthStateChanged(auth,function(user){
 if(unsub){unsub();unsub=null}
 isAdmin=!!user&&(user.email||'').toLowerCase()===ADMIN;
+me=!user?null:(isAdmin?'A':'K');
 state.items=[];
 if(!user){$('app').hidden=true;$('authCard').hidden=false;return}
 $('authCard').hidden=true;$('app').hidden=false;$('syncErr').textContent='';
