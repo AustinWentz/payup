@@ -35,10 +35,7 @@ input[type=date]::-webkit-datetime-edit-fields-wrapper,
 input[type=date]::-webkit-datetime-edit-text,
 input[type=date]::-webkit-datetime-edit-month-field,
 input[type=date]::-webkit-datetime-edit-day-field,
-input[type=date]::-webkit-datetime-edit-year-field{
-  color:var(--ink);
-  -webkit-text-fill-color:var(--ink);
-}
+input[type=date]::-webkit-datetime-edit-year-field{color:var(--ink);-webkit-text-fill-color:var(--ink)}
 .seg{display:flex;gap:8px}
 .seg label{flex:1;margin:0}
 .seg input{position:absolute;opacity:0;pointer-events:none}
@@ -156,6 +153,7 @@ import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase
 import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,setDoc,deleteDoc,onSnapshot,writeBatch} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
+// PASTE YOUR firebaseConfig OVER THIS BLOCK (Firebase console > Project settings > Your apps).
 var firebaseConfig={
   apiKey: "AIzaSyB8rVL8sOJu8Ka_aGrqwSEXvcIlHffFUiM",
   authDomain: "payup-5cc7a.firebaseapp.com",
@@ -164,11 +162,11 @@ var firebaseConfig={
   messagingSenderId: "692508371545",
   appId: "1:692508371545:web:453b8a61a65aa56c10df48"
 };
- 
+
 (function(){
 var KEY='payup.v1', PREF_KEY='payup.prefs', NAMES={A:'Austin',K:'Keeley'};
 var state={items:[],lastBackup:null,last:{paid:'A',split:'50'}};
-var editId=null,unsub=null,db=null,auth=null;
+var editId=null,unsub=null,db=null,auth=null,showHistory=false;
 var $=function(id){return document.getElementById(id)};
 // Storage layer: prefs stay on this device; expenses live in Firestore ("entries").
 function load(){
@@ -209,8 +207,24 @@ btn.disabled=false;
 function renderList(){
 var box=$('list');box.innerHTML='';
 if(!state.items.length){var e=document.createElement('p');e.className='empty';e.textContent='Zero expenses. Too clean. Log something.';box.appendChild(e);return}
-var items=state.items.slice().sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:b.id-a.id});
-items.forEach(function(it){
+var sorter=function(a,b){return a.date<b.date?1:a.date>b.date?-1:b.id-a.id};
+// Current cycle = everything logged after the most recent settlement; the rest is history.
+var cut=0;state.items.forEach(function(x){if(x.type==='settle'&&x.id>cut)cut=x.id});
+var cur=state.items.filter(function(x){return x.id>cut}).sort(sorter);
+var past=state.items.filter(function(x){return x.id<=cut}).sort(sorter);
+if(!cur.length){var c=document.createElement('p');c.className='empty';c.textContent='Clean slate. Go spend some money.';box.appendChild(c)}
+cur.forEach(addRow);
+if(past.length){
+var hb=document.createElement('button');hb.className='ghost full';
+hb.textContent=showHistory?'Hide History':'History ('+past.length+')';
+hb.onclick=function(){showHistory=!showHistory;renderList()};
+box.appendChild(hb);
+if(showHistory){
+var hh=document.createElement('div');hh.className='meta';hh.style.margin='14px 0 4px';hh.textContent='Before the last nuke';box.appendChild(hh);
+past.forEach(addRow);
+}
+}
+function addRow(it){
 var row=document.createElement('div');row.className='row'+(it.type==='settle'?' settle':'');
 var left=document.createElement('div');
 var t=document.createElement('div');t.textContent=it.type==='settle'?'PIPER PAID':it.desc;
@@ -229,7 +243,7 @@ del.onclick=function(){if(confirm('Yeet this into the void? No takebacks.')){if(
 acts.appendChild(del);left.appendChild(acts);
 var amt=document.createElement('div');amt.className='amt';amt.textContent=money(it.cents);
 row.appendChild(left);row.appendChild(amt);box.appendChild(row);
-});
+}
 }
 function renderBackup(){
 var n=$('backupNote');
