@@ -218,9 +218,9 @@ state.last={paid:paid,split:split};save();resetForm();render();
 $('cancel').onclick=resetForm;
 // ---- Pay the Piper: tactical nuke sequence ----
 var NUKE_SRC='tactical-nuke.mp3';   // audio file, same folder as index.html
-var NUKE_SECS=9.74;                 // length of the clip; the countdown is timed to it
-var NUKE_BOOM=true;                 // synthesized explosion at zero; set false if the clip already ends with a blast
-var nuking=false,actx=null,wrap=document.querySelector('.wrap');
+var NUKE_SECS=5.6;                  // seconds into the clip where the blast hits; the countdown ends here (nudge +/-0.1 to fine-tune sync)
+var NUKE_BOOM=false;                // the clip has its own blast; set true to layer a synthesized boom on top
+var nuking=false,actx=null,nukeAudio=null,wrap=document.querySelector('.wrap');
 var reduceMotion=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 function shake(px){wrap.style.setProperty('--s',px);wrap.classList.toggle('nkshake',px>0&&!reduceMotion)}
 function setCount(n){var c=$('nkCount');c.textContent=n;c.classList.remove('tick');void c.offsetWidth;c.classList.add('tick')}
@@ -242,7 +242,7 @@ sub.connect(sg);sg.connect(actx.destination);sub.start(t);sub.stop(t+3);
 }
 function nuke(done){
 nuking=true;
-var n=Math.ceil(NUKE_SECS),t0=null,a=new Audio(NUKE_SRC);
+var n=Math.ceil(NUKE_SECS),t0=null,a=new Audio(NUKE_SRC);nukeAudio=a;
 document.documentElement.style.overflow='hidden';
 try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume()}catch(e){}
 $('nuke').classList.add('on');setCount(n);shake(1);
@@ -251,11 +251,11 @@ function loop(){
 var rem=NUKE_SECS-(performance.now()-t0)/1000;
 if(rem<=0)return detonate();
 var c=Math.ceil(rem);
-if(c!==n){n=c;setCount(n);shake(1+(Math.ceil(NUKE_SECS)-n)*1.2)}
+if(c!==n){n=c;setCount(n);shake(1+(Math.ceil(NUKE_SECS)-n)*1.8)}
 requestAnimationFrame(loop);
 }
 function detonate(){
-a.pause();boom();shake(28);$('nuke').classList.remove('on');
+boom();shake(28);$('nuke').classList.remove('on');
 var fl=$('nkFlash'),ring=$('nkRing');
 fl.style.transition='none';fl.style.opacity=1;
 ring.style.transition='none';ring.style.opacity=1;ring.style.transform='scale(1)';
@@ -273,6 +273,7 @@ a.addEventListener('playing',go);
 var p=a.play();if(p&&p.catch)p.catch(go);   // if audio is blocked or missing, the countdown still runs silently
 }
 $('nkReset').onclick=function(){
+if(nukeAudio){nukeAudio.pause();nukeAudio=null}
 $('nkAfter').classList.remove('on');wrap.classList.remove('blown');
 document.documentElement.style.overflow='';nuking=false;window.scrollTo(0,0);
 };
