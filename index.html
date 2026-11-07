@@ -164,9 +164,9 @@ var firebaseConfig={
 };
 
 (function(){
-var KEY='payup.v1', PREF_KEY='payup.prefs', NAMES={A:'Austin',K:'Keeley'};
+var KEY='payup.v1', PREF_KEY='payup.prefs', ADMIN='wentzaus@gmail.com', NAMES={A:'Austin',K:'Keeley'};
 var state={items:[],lastBackup:null,last:{paid:'A',split:'50'}};
-var editId=null,unsub=null,db=null,auth=null,showHistory=false;
+var editId=null,unsub=null,db=null,auth=null,showHistory=false,isAdmin=false;
 var $=function(id){return document.getElementById(id)};
 // Storage layer: prefs stay on this device; expenses live in Firestore ("entries").
 function load(){
@@ -234,13 +234,14 @@ m.textContent=it.type==='settle'
 : NAMES[it.paid]+' paid · '+(it.split==='65'?'65/35':'50/50')+' · '+it.date;
 left.appendChild(t);left.appendChild(m);
 var acts=document.createElement('div');acts.className='acts';
-if(it.type!=='settle'){
+if(it.type!=='settle'&&it.id>cut){
 var ed=document.createElement('button');ed.className='ghost';ed.textContent='Fix It';
 ed.onclick=function(){startEdit(it.id)};acts.appendChild(ed);
 }
 var del=document.createElement('button');del.className='ghost';del.textContent='Yeet';
 del.onclick=function(){if(confirm('Yeet this into the void? No takebacks.')){if(editId===it.id)resetForm();remove(it.id)}};
-acts.appendChild(del);left.appendChild(acts);
+if(isAdmin)acts.appendChild(del);
+left.appendChild(acts);
 var amt=document.createElement('div');amt.className='amt';amt.textContent=money(it.cents);
 row.appendChild(left);row.appendChild(amt);box.appendChild(row);
 }
@@ -252,7 +253,9 @@ if(!state.lastBackup){n.textContent='You have never backed up. Bold. Reckless. F
 var days=Math.floor((Date.now()-state.lastBackup)/864e5);
 n.textContent=days<1?'Backed up today. Look at you.':'Last backup: '+days+' day'+(days===1?'':'s')+' ago.'+(days>30?' Do it again. Now.':'');
 }
-function render(){renderBalance();renderList();renderBackup()}
+function lastSettle(){var l=null;state.items.forEach(function(x){if(x.type==='settle'&&(!l||x.id>l.id))l=x});return l}
+function renderDateMin(){var l=lastSettle(),d=$('date');if(l)d.min=l.date;else d.removeAttribute('min')}
+function render(){renderBalance();renderList();renderBackup();renderDateMin()}
 function radio(name,val){var r=document.querySelector('input[name="'+name+'"][value="'+val+'"]');if(r)r.checked=true}
 function getRadio(name){return document.querySelector('input[name="'+name+'"]:checked').value}
 function resetForm(){
@@ -272,6 +275,8 @@ var desc=$('desc').value.trim(),amt=parseFloat($('amount').value),date=$('date')
 if(!desc){$('err').textContent='Spent it on WHAT? Add a description.';return}
 if(!(amt>0)){$('err').textContent='Enter an actual amount, genius.';return}
 if(!date)date=today();
+var ls=lastSettle();
+if(ls&&date<ls.date){$('err').textContent='That’s before the last settle-up ('+ls.date+'). Pick that day or later.';return}
 var cents=Math.round(amt*100),paid=getRadio('paid'),split=getRadio('split');
 if(editId){
 var old=state.items.filter(function(x){return x.id===editId})[0];
@@ -397,6 +402,7 @@ $('pw').onkeydown=function(e){if(e.key==='Enter')doSignIn()};
 $('signout').onclick=function(){signOut(auth)};
 onAuthStateChanged(auth,function(user){
 if(unsub){unsub();unsub=null}
+isAdmin=!!user&&(user.email||'').toLowerCase()===ADMIN;
 state.items=[];
 if(!user){$('app').hidden=true;$('authCard').hidden=false;return}
 $('authCard').hidden=true;$('app').hidden=false;$('syncErr').textContent='';
