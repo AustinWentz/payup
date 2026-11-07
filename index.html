@@ -24,9 +24,9 @@ h1{font-size:64px;line-height:.9;margin:6px 0 2px;color:var(--yel);text-shadow:4
 .quip{margin:0 0 12px}
 h2{font-size:26px;margin:0 0 10px}
 label{display:block;font-weight:800;margin:10px 0 4px}
-input[type=text],input[type=number],input[type=date]{width:100%;font:inherit;font-size:18px;padding:10px;border:3px solid var(--ink);background:#fff;border-radius:0}
-input[type=date]{display:block;min-width:0;max-width:100%;min-height:48px;text-align:left;line-height:normal;color:var(--ink);-webkit-text-fill-color:var(--ink);opacity:1;-webkit-appearance:none;appearance:none}
-input[type=date]::-webkit-date-and-time-value{text-align:left;min-width:0;color:var(--ink);-webkit-text-fill-color:var(--ink)}
+input[type=text],input[type=number],input[type=date],input[type=email],input[type=password]{width:100%;font:inherit;font-size:18px;padding:10px;border:3px solid var(--ink);background:#fff;border-radius:0}
+input[type=date]{display:block;min-width:0;max-width:100%;min-height:48px;text-align:left;line-height:normal;-webkit-appearance:none;appearance:none}
+input[type=date]::-webkit-date-and-time-value{text-align:left;min-width:0}
 input[type=date]::-webkit-datetime-edit{padding:0}
 .seg{display:flex;gap:8px}
 .seg label{flex:1;margin:0}
@@ -52,6 +52,7 @@ button[disabled]{opacity:.4}
 .foot button{flex:1}
 .note{font-size:14px;margin:10px 0 0;font-weight:700}
 .err{color:var(--red);font-weight:800;min-height:1.3em;margin:8px 0 0}
+[hidden]{display:none!important}
 /* Pay the Piper: tactical nuke sequence */
 .wrap{transform-origin:50% 40%;transition:scale 1.2s cubic-bezier(.1,.8,.2,1),rotate 1.2s,filter 1.2s,opacity 1.2s}
 .wrap.blown{scale:2.4;rotate:6deg;filter:blur(18px) brightness(2);opacity:0}
@@ -80,6 +81,17 @@ button[disabled]{opacity:.4}
 <div class="wrap">
 <h1>PayUp</h1>
 <p class="sub">Money talks. Yours is overdue.</p>
+<section class="card" id="authCard" hidden>
+<h2>Show Your ID</h2>
+<label for="email">Email</label>
+<input type="email" id="email" autocomplete="username">
+<label for="pw">Password</label>
+<input type="password" id="pw" autocomplete="current-password">
+<p class="err" id="authErr"></p>
+<button class="full" id="signin">Let Me In</button>
+</section>
+<div id="app" hidden>
+<p class="err" id="syncErr"></p>
 <section class="card bal" aria-live="polite">
 <p class="big" id="balLine"></p>
 <p class="quip" id="balQuip"></p>
@@ -116,26 +128,50 @@ button[disabled]{opacity:.4}
 <div class="foot">
 <button id="export">Hoard a Backup</button>
 <button id="importBtn">Resurrect Data</button>
+<button id="uploadLocal" hidden>Upload Old Phone Data</button>
+<button id="signout" class="ghost">Sign Out</button>
 </div>
 <input type="file" id="importFile" accept="application/json,.json" hidden>
 <p class="note" id="backupNote"></p>
 </section>
 </div>
+</div>
 <div id="nuke" role="alertdialog" aria-live="assertive" aria-label="Tactical nuke countdown"><div><div id="nkWarn">Tactical nuke inbound</div><div id="nkCount">10</div></div></div>
 <div id="nkRing"></div>
 <div id="nkFlash"></div>
 <div id="nkAfter"><div><h2>Paid in full.</h2><p>Everything else was vaporized.</p><button id="nkReset">Rebuild</button></div></div>
-<script>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,setDoc,deleteDoc,onSnapshot,writeBatch} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+var firebaseConfig={
+  apiKey: "AIzaSyB8rVL8sOJu8Ka_aGrqwSEXvcIlHffFUiM",
+  authDomain: "payup-5cc7a.firebaseapp.com",
+  projectId: "payup-5cc7a",
+  storageBucket: "payup-5cc7a.firebasestorage.app",
+  messagingSenderId: "692508371545",
+  appId: "1:692508371545:web:453b8a61a65aa56c10df48"
+};
+ 
 (function(){
-var KEY='payup.v1', NAMES={A:'Austin',K:'Keeley'};
+var KEY='payup.v1', PREF_KEY='payup.prefs', NAMES={A:'Austin',K:'Keeley'};
 var state={items:[],lastBackup:null,last:{paid:'A',split:'50'}};
-var editId=null;
+var editId=null,unsub=null,db=null,auth=null;
 var $=function(id){return document.getElementById(id)};
-// Storage layer: swap these two functions for Firebase later.
+// Storage layer: prefs stay on this device; expenses live in Firestore ("entries").
 function load(){
-try{var r=localStorage.getItem(KEY);if(r){var s=JSON.parse(r);if(s&&Array.isArray(s.items))state=Object.assign(state,s)}}catch(e){}
+try{var r=localStorage.getItem(PREF_KEY)||localStorage.getItem(KEY);if(r){var s=JSON.parse(r);if(s&&s.last)state.last=s.last;if(s&&s.lastBackup)state.lastBackup=s.lastBackup}}catch(e){}
 }
-function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+function save(){try{localStorage.setItem(PREF_KEY,JSON.stringify({lastBackup:state.lastBackup,last:state.last}))}catch(e){}}
+function localItems(){try{var s=JSON.parse(localStorage.getItem(KEY)||'null');return s&&Array.isArray(s.items)?s.items:[]}catch(e){return[]}}
+function put(it){return setDoc(doc(db,'entries',String(it.id)),it).catch(fail)}
+function remove(id){return deleteDoc(doc(db,'entries',String(id))).catch(fail)}
+function fail(e){$('syncErr').textContent=e&&e.code==='permission-denied'?'This account isn’t allowed to touch the data.':'Sync problem: '+(e&&e.code||e)}
+function writeAll(list){
+var chunks=[];for(var i=0;i<list.length;i+=400)chunks.push(list.slice(i,i+400));
+return chunks.reduce(function(p,c){return p.then(function(){var b=writeBatch(db);c.forEach(function(it){b.set(doc(db,'entries',String(it.id)),it)});return b.commit()})},Promise.resolve());
+}
 function money(c){return '$'+(Math.abs(c)/100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',')}
 function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function austinShare(it){return Math.round(it.cents*(it.split==='65'?0.65:0.5))}
@@ -178,7 +214,7 @@ var ed=document.createElement('button');ed.className='ghost';ed.textContent='Fix
 ed.onclick=function(){startEdit(it.id)};acts.appendChild(ed);
 }
 var del=document.createElement('button');del.className='ghost';del.textContent='Yeet';
-del.onclick=function(){if(confirm('Yeet this into the void? No takebacks.')){state.items=state.items.filter(function(x){return x.id!==it.id});if(editId===it.id)resetForm();save();render()}};
+del.onclick=function(){if(confirm('Yeet this into the void? No takebacks.')){if(editId===it.id)resetForm();remove(it.id)}};
 acts.appendChild(del);left.appendChild(acts);
 var amt=document.createElement('div');amt.className='amt';amt.textContent=money(it.cents);
 row.appendChild(left);row.appendChild(amt);box.appendChild(row);
@@ -186,6 +222,7 @@ row.appendChild(left);row.appendChild(amt);box.appendChild(row);
 }
 function renderBackup(){
 var n=$('backupNote');
+$('uploadLocal').hidden=!localItems().length;
 if(!state.lastBackup){n.textContent='You have never backed up. Bold. Reckless. Fix it.';return}
 var days=Math.floor((Date.now()-state.lastBackup)/864e5);
 n.textContent=days<1?'Backed up today. Look at you.':'Last backup: '+days+' day'+(days===1?'':'s')+' ago.'+(days>30?' Do it again. Now.':'');
@@ -212,11 +249,12 @@ if(!(amt>0)){$('err').textContent='Enter an actual amount, genius.';return}
 if(!date)date=today();
 var cents=Math.round(amt*100),paid=getRadio('paid'),split=getRadio('split');
 if(editId){
-state.items=state.items.map(function(x){return x.id===editId?Object.assign({},x,{desc:desc,cents:cents,paid:paid,split:split,date:date}):x});
+var old=state.items.filter(function(x){return x.id===editId})[0];
+if(old)put(Object.assign({},old,{desc:desc,cents:cents,paid:paid,split:split,date:date}));
 }else{
-state.items.push({id:Date.now(),type:'expense',desc:desc,cents:cents,paid:paid,split:split,date:date});
+put({id:Date.now(),type:'expense',desc:desc,cents:cents,paid:paid,split:split,date:date});
 }
-state.last={paid:paid,split:split};save();resetForm();render();
+state.last={paid:paid,split:split};save();resetForm();
 };
 $('cancel').onclick=resetForm;
 // ---- Pay the Piper: tactical nuke sequence ----
@@ -286,8 +324,7 @@ var b=balance();if(b===0)return;
 var from=b>0?'K':'A',to=b>0?'A':'K';
 if(!confirm(NAMES[from]+' pays '+NAMES[to]+' '+money(b)+' and the slate goes clean. No takebacks. Proceed?'))return;
 nuke(function(){
-state.items.push({id:Date.now(),type:'settle',cents:Math.abs(b),from:from,to:to,date:today()});
-save();render();
+put({id:Date.now(),type:'settle',cents:Math.abs(b),from:from,to:to,date:today()});
 });
 };
 $('export').onclick=function(){
@@ -305,14 +342,44 @@ r.onload=function(){
 try{
 var s=JSON.parse(r.result);
 if(!s||!Array.isArray(s.items))throw 0;
-if(!confirm('This REPLACES everything currently in the app. Send it?'))return;
-state=Object.assign({items:[],lastBackup:null,last:{paid:'A',split:'50'}},s);
-save();resetForm();render();
+var good=s.items.filter(function(x){return x&&x.id&&typeof x.cents==='number'});
+if(!confirm('This ADDS '+good.length+' backup items to the shared list (matching ones get overwritten). Send it?'))return;
+writeAll(good).catch(fail);
 }catch(x){alert('That file is garbage. Try a real PayUp backup.')}
 };
 r.readAsText(f);e.target.value='';
 };
-load();resetForm();render();
+$('uploadLocal').onclick=function(){
+var li=localItems();if(!li.length)return;
+if(!confirm('Upload '+li.length+' item(s) saved on this device to the shared cloud list?'))return;
+writeAll(li).then(function(){alert('Uploaded. Check the Receipts.')}).catch(fail);
+};
+// Auth + live sync
+load();
+var cfgOk=firebaseConfig.apiKey&&firebaseConfig.apiKey.indexOf('PASTE')!==0;
+if(!cfgOk){$('authCard').hidden=false;$('authErr').textContent='Firebase config missing: paste your firebaseConfig into index.html.';$('signin').disabled=true;return}
+var fbApp=initializeApp(firebaseConfig);
+auth=getAuth(fbApp);
+db=initializeFirestore(fbApp,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
+function doSignIn(){
+$('authErr').textContent='';
+signInWithEmailAndPassword(auth,$('email').value.trim().toLowerCase(),$('pw').value).then(function(){$('pw').value=''}).catch(function(e){
+$('authErr').textContent=/invalid-credential|wrong-password|user-not-found|invalid-email/.test(e.code)?'Wrong email or password.':'Sign-in failed: '+e.code;
+});
+}
+$('signin').onclick=doSignIn;
+$('pw').onkeydown=function(e){if(e.key==='Enter')doSignIn()};
+$('signout').onclick=function(){signOut(auth)};
+onAuthStateChanged(auth,function(user){
+if(unsub){unsub();unsub=null}
+state.items=[];
+if(!user){$('app').hidden=true;$('authCard').hidden=false;return}
+$('authCard').hidden=true;$('app').hidden=false;$('syncErr').textContent='';
+resetForm();render();
+unsub=onSnapshot(collection(db,'entries'),function(snap){
+state.items=snap.docs.map(function(d){return d.data()});$('syncErr').textContent='';render();
+},fail);
+});
 })();
 </script>
 </body>
